@@ -33,7 +33,6 @@ class ChatPlugin
     public function openai(string $plugin_id)
     {
         $data = file_get_contents(BASE_PATH . '/runtime/plugin/' . $plugin_id . '/openapi.yaml');
-        /** @var ResponseInterface $response */
         return $this->response->withAddedHeader('content-type', 'text/yaml; charset=utf-8')
             ->withBody(new SwooleStream((string)$data));
     }
