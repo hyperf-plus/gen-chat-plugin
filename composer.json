@@ -1,0 +1,45 @@
+{
+  "name": "hyperf-plus/gen-chat-plugin",
+  "description": "A OpenAI plugin yaml.",
+  "license": "MIT",
+  "keywords": [
+    "php",
+    "swoole",
+    "hyperf",
+    "swagger"
+  ],
+  "support": {
+  },
+  "require": {
+    "php": ">=8.0",
+    "hyperf-plus/route": "^3.0.0"
+  },
+  "require-dev": {
+  },
+  "suggest": {
+  },
+  "autoload": {
+    "psr-4": {
+      "HPlus\\ChatPlugins\\": "src/"
+    }
+  },
+  "autoload-dev": {
+    "psr-4": {
+    }
+  },
+  "config": {
+    "sort-packages": true
+  },
+  "extra": {
+    "hyperf": {
+      "config": "HPlus\\ChatPlugins\\ConfigProvider"
+    }
+  },
+  "bin": [
+  ],
+  "scripts": {
+    "cs-fix": "php-cs-fixer fix $1",
+    "test": "phpunit --colors=always"
+  },
+  "minimum-stability": "stable"
+}
