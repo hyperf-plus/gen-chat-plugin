@@ -32,10 +32,9 @@ use HPlus\Route\Annotation\Query;
 use HPlus\Validate\Annotations\RequestValidation;
 use Hyperf\Contract\ConfigInterface;
 use Hyperf\Di\ReflectionManager;
-use Hyperf\Utils\ApplicationContext;
-use Hyperf\Utils\Arr;
-use Hyperf\Utils\Str;
-use phpseclib3\Crypt\EC\Curves\nistb233;
+use Hyperf\Context\ApplicationContext;
+use Hyperf\Collection\Arr;
+use Hyperf\Stringable\Str;
 
 class ChatPluginsJson
 {
@@ -221,8 +220,7 @@ class ChatPluginsJson
                 case $item instanceof Body:
                     $parameter = $this->getDefaultParameter($item->key, $item->in, $item->key, $item->required);
                     $modelName = $method . implode('', array_map('ucfirst', explode('/', $path)));
-                    $this->rules2schema($modelName, $item->rules);
-                    $parameter['schema']['$ref'] = '#/definitions/' . $modelName;
+                    $parameter['schema'] = $this->rules2schema($modelName, $item->rules);
                     $parameters[$item->key] = $parameter;
                     break;
                 case $item instanceof Query:
@@ -528,6 +526,7 @@ class ChatPluginsJson
             $schema['properties'][$fieldName] = $property;
         }
         $this->plugins['definitions'][$name] = $schema;
+        return $schema;
     }
 
     private function getPath($path)
