@@ -49,13 +49,14 @@ class ChatPluginsJson
     {
         $container = ApplicationContext::getContainer();
         $this->config = $container->get(ConfigInterface::class);
-        $this->plugins = $this->config->get('plugins.openapi');
+        $this->plugins = $this->config->get('plugins.openapi') ?: [];
         $this->server = $server;
     }
 
     public function addPath($className, $methodName, $path): ?ChatPluginBean
     {
-        $plugin = new ChatPluginBean();
+        $plugin = new ChatPluginBean($this->plugins);
+
         $classAnnotation = ApiAnnotation::classMetadata($className);
         $controlerAnno = $classAnnotation[ApiController::class] ?? $classAnnotation[AdminController::class] ?? null;
         $serverAnno = $classAnnotation[ApiServer::class] ?? null;

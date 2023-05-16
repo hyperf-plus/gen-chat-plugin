@@ -17,15 +17,22 @@ use HPlus\ChatPlugins\Annotation\ChatPluginAnnotation;
 class ChatPluginBean
 {
     public function __construct(
+        protected array                 $data = [],
         protected string                $plugin_id = '',
+        protected string                $openapi = '',
         protected string                $name = '',
         protected array                 $tags = [],
-        protected string                $info = '',
+        protected array                 $info = [],
         protected array                 $servers = [],
         protected array                 $paths = [],
         protected ?ChatPluginAnnotation $aiPlugin = null,
     )
     {
+        foreach ($data as $k => $v) {
+            if (property_exists($this, $k)) {
+                $this->{$k} = $v;
+            }
+        }
     }
 
     public function addTags(array $tags): void
@@ -133,17 +140,17 @@ class ChatPluginBean
     }
 
     /**
-     * @return string
+     * @return array
      */
-    public function getInfo(): string
+    public function getInfo(): array
     {
         return $this->info;
     }
 
     /**
-     * @param string $info
+     * @param array $info
      */
-    public function setInfo(string $info): void
+    public function setInfo(array $info): void
     {
         $this->info = $info;
     }
@@ -164,5 +171,16 @@ class ChatPluginBean
         $this->plugin_id = $plugin_id;
     }
 
+    public function toArray()
+    {
+        $items = [];
+        foreach ($this as $k => $v) {
+            if (in_array($k, ['data', 'aiPlugin', 'plugin_id'])) {
+                continue;
+            }
+            $items[$k] = $v;
+        }
+        return $items;
+    }
 
 }

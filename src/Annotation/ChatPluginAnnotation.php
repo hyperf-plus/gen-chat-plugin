@@ -205,4 +205,16 @@ class ChatPluginAnnotation extends AbstractAnnotation
         $this->legal_info_url = $legal_info_url;
     }
 
+    public function toArray(): array
+    {
+        $item = [];
+        foreach ($this as $k => $v) {
+            if ($k == 'plugin_id') {
+                continue;
+            }
+            $item[$k] = $v;
+        }
+        return $item;
+    }
+
 }
