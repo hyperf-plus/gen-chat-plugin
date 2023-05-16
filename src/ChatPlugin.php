@@ -1,14 +1,21 @@
 <?php
 
-declare (strict_types=1);
-
+declare(strict_types=1);
+/**
+ * This file is part of Hyperf.
+ *
+ * @link     https://www.hyperf.io
+ * @document https://hyperf.wiki
+ * @contact  group@hyperf.io
+ * @license  https://github.com/hyperf/hyperf/blob/master/LICENSE
+ */
 namespace HPlus\ChatPlugins;
 
+use Hyperf\Context\ApplicationContext;
 use Hyperf\Contract\ConfigInterface;
 use Hyperf\HttpMessage\Stream\SwooleStream;
 use Hyperf\HttpServer\Annotation\GetMapping;
 use Hyperf\HttpServer\Contract\ResponseInterface;
-use Hyperf\Context\ApplicationContext;
 
 #[\Hyperf\HttpServer\Annotation\Controller]
 class ChatPlugin
@@ -32,13 +39,13 @@ class ChatPlugin
         return $this->response->json(json_decode($data, true));
     }
 
-    #[GetMapping(path: '/{plugin_id}}/openapi.yaml')]
+    #[GetMapping(path: '/{plugin_id}/openapi.json')]
     public function openai(string $plugin_id)
     {
         $output_dir = trim($this->config->get('plugins.php.output_dir') ?: 'runtime/plugin', '/');
-        $filename = sprintf('%s/%s/%s/openapi.yaml', BASE_PATH, $output_dir, $plugin_id);
+        $filename = sprintf('%s/%s/%s/openapi.json', BASE_PATH, $output_dir, $plugin_id);
         $data = file_get_contents($filename);
         return $this->response->withAddedHeader('content-type', 'text/yaml; charset=utf-8')
-            ->withBody(new SwooleStream((string)$data));
+            ->withBody(new SwooleStream((string) $data));
     }
 }

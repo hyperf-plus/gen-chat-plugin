@@ -9,7 +9,6 @@ declare(strict_types=1);
  * @contact  group@hyperf.io
  * @license  https://github.com/hyperf/hyperf/blob/master/LICENSE
  */
-
 namespace HPlus\ChatPlugins\ChatPlugins;
 
 use Exception;
@@ -30,10 +29,10 @@ use HPlus\Route\Annotation\Mapping;
 use HPlus\Route\Annotation\Param;
 use HPlus\Route\Annotation\Query;
 use HPlus\Validate\Annotations\RequestValidation;
+use Hyperf\Collection\Arr;
+use Hyperf\Context\ApplicationContext;
 use Hyperf\Contract\ConfigInterface;
 use Hyperf\Di\ReflectionManager;
-use Hyperf\Context\ApplicationContext;
-use Hyperf\Collection\Arr;
 use Hyperf\Stringable\Str;
 
 class ChatPluginsJson
@@ -73,21 +72,23 @@ class ChatPluginsJson
         $base_uri = trim($this->config->get('plugins.base_uri') ?: '', '/');
         $chatPluginConfig->setApi([
             'type' => 'openapi',
-            'url' => sprintf('%s/%s/openapi.yaml', $base_uri, $chatPluginConfig->getPluginId()),
+            'url' => sprintf('%s/%s/openapi.json', $base_uri, $chatPluginConfig->getPluginId()),
             'is_user_authenticated' => false,
         ]);
         $plugin->setAiPlugin($chatPluginConfig);
         $plugin->setPluginId($chatPluginConfig->getPluginId());
         $plugin->setServers([
-            'url' => $base_uri,
+            [
+                'url' => $base_uri,
+            ]
         ]);
 
-        if (!in_array($bindServer, $servers_name)) {
+        if (! in_array($bindServer, $servers_name)) {
             throw new Exception(sprintf('The bind ApiServer name [%s] not found, defined in %s!', $bindServer, $className));
         }
 
         $methodAnnotations = ApiAnnotation::methodMetadata($className, $methodName);
-        if (!$controlerAnno || !$methodAnnotations) {
+        if (! $controlerAnno || ! $methodAnnotations) {
             return null;
         }
         $params = [];
@@ -159,7 +160,6 @@ class ChatPluginsJson
 
         $method = strtolower($mapping->methods[0] ?? '');
 
-
         $plugin->addPath($path, $method, [
             'tags' => [$tag],
             'summary' => $mapping->summary ?? '',
@@ -178,7 +178,6 @@ class ChatPluginsJson
         }
 
         return $plugin;
-
     }
 
     public function getTypeByRule($rule)
@@ -272,7 +271,7 @@ class ChatPluginsJson
                     continue;
                 }
                 // 处理直接返回列表的情况 List<Integer> List<String>
-                if (isset($item->schema[0]) && !is_array($item->schema[0])) {
+                if (isset($item->schema[0]) && ! is_array($item->schema[0])) {
                     $resp[$item->code]['schema']['type'] = 'array';
                     if (is_int($item->schema[0])) {
                         $resp[$item->code]['schema']['items'] = [
@@ -305,7 +304,7 @@ class ChatPluginsJson
 
     public function makeDefinition($definitions)
     {
-        if (!$definitions) {
+        if (! $definitions) {
             return;
         }
         if ($definitions instanceof ApiDefinitions) {
@@ -334,7 +333,7 @@ class ChatPluginsJson
 
                     if (isset($prop['default'])) {
                         $propVal['default'] = $prop['default'];
-                        !isset($propVal['type']) && $propVal['type'] = is_numeric($propVal['default']) ? 'integer' : 'string';
+                        ! isset($propVal['type']) && $propVal['type'] = is_numeric($propVal['default']) ? 'integer' : 'string';
                     }
                     if (isset($prop['$ref'])) {
                         $propVal['$ref'] = '#/definitions/' . $prop['$ref'];
@@ -351,7 +350,7 @@ class ChatPluginsJson
 
     public function responseSchemaToDefinition($schema, $modelName, $level = 0)
     {
-        if (!$schema) {
+        if (! $schema) {
             return false;
         }
         $definition = [];
@@ -407,7 +406,7 @@ class ChatPluginsJson
     {
         $this->plugins['tags'] = array_values($this->plugins['tags'] ?? []);
         $outputFile = $this->config->get('swagger.output_file');
-        if (!$outputFile) {
+        if (! $outputFile) {
             throw new Exception('/config/autoload/swagger.php need set output_file');
         }
         $outputFile = str_replace('{server}', $this->server, $outputFile);
@@ -417,7 +416,7 @@ class ChatPluginsJson
 
     protected function getPrefix(string $className, string $prefix): string
     {
-        if (!$prefix) {
+        if (! $prefix) {
             $handledNamespace = Str::replaceFirst('Controller', '', Str::after($className, '\\Controller\\'));
             $handledNamespace = str_replace('\\', '/', $handledNamespace);
             $prefix = Str::snake($handledNamespace);

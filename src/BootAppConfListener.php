@@ -7,7 +7,7 @@ use HPlus\ChatPlugins\Annotation\ChatPluginAnnotation;
 use HPlus\ChatPlugins\ChatPlugins\ChatPluginsJson;
 use Hyperf\Contract\ConfigInterface;
 use Hyperf\Event\Contract\ListenerInterface;
-use Hyperf\Framework\Event\BeforeServerStart;
+use Hyperf\Framework\Event\BootApplication;
 use Hyperf\HttpServer\Router\DispatcherFactory;
 use Hyperf\HttpServer\Router\Handler;
 use Hyperf\Logger\LoggerFactory;
@@ -19,24 +19,28 @@ class BootAppConfListener implements ListenerInterface
     public function listen(): array
     {
         return [
-            BeforeServerStart::class,
+            BootApplication::class,
         ];
     }
 
     public function process(object $event): void
     {
         $container = ApplicationContext::getContainer();
-        $logger = $container->get(LoggerFactory::class)->get('swagger');
+        $logger = $container->get(LoggerFactory::class)->get('plugins');
         $config = $container->get(ConfigInterface::class);
-        if (!$config->get('swagger.enable')) {
+
+
+        if (!$config->get('plugins.enable')) {
             $logger->debug('swagger not enable');
             return;
         }
-        $output = $config->get('swagger.output_file');
+
+        $output = $config->get('plugins.output_dir');
         if (!$output) {
-            $logger->error('/config/autoload/swagger.php need set output_file');
+            $logger->error('/config/autoload/plugins.php need set output_file');
             return;
         }
+
         $router = $container->get(DispatcherFactory::class)->getRouter('http');
         $data = $router->getData();
         $servers = $config->get('server.servers');
@@ -50,9 +54,12 @@ class BootAppConfListener implements ListenerInterface
                 continue;
             }
 
-            $ignore = $config->get('swagger.ignore', function ($controller, $action) {
+            $ignore = $config->get('plugins.ignore', function ($controller, $action) {
                 return false;
             });
+
+
+
             $plugins = [];
             array_walk_recursive($data, function ($item) use ($swagger, $ignore, &$plugins) {
                 if ($item instanceof Handler && !($item->callback instanceof \Closure)) {
