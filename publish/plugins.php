@@ -8,27 +8,16 @@ return [
     'ignore' => function ($controller, $action) {
         return false;
     },
-    // 自定义验证器错误码、错误描述字段
-    'error_code' => 400,
-    'http_status_code' => 400,
-    'field_error_code' => 'code',
-    'field_error_message' => 'message',
-    // swagger 的基础配置
-    'swagger' => [
-        'swagger' => '2.0',
+    // openapi 的基础配置
+    'openapi' => [
+        'openapi' => '3.1.0',
         'info' => [
-            'description' => 'hyperf swagger api desc',
-            'version' => '1.0.0',
-            'title' => 'HYPERF API DOC',
+            'title' => '请求',
+            'description' => '',
+            'version' => 'v1',
         ],
-        'host' => '', //默认空为当前目录
-        'schemes' => ['http'],
-        "securityDefinitions" => [
-            "token" => [
-                "type" => "apiKey",
-                "name" => "token",
-                "in" => "header"
-            ]
+        'components' => [
+            'schemas' => [],
         ],
     ],
 ];
