@@ -1,35 +1,44 @@
 <?php
-declare(strict_types=1);
 
+declare(strict_types=1);
+/**
+ * This file is part of Hyperf.
+ *
+ * @link     https://www.hyperf.io
+ * @document https://hyperf.wiki
+ * @contact  group@hyperf.io
+ * @license  https://github.com/hyperf/hyperf/blob/master/LICENSE
+ */
 namespace HPlus\ChatPlugins\ChatPlugins;
 
 use Exception;
-use HPlus\Route\Annotation\ApiController;
-use HPlus\Route\Annotation\AdminController;
-use HPlus\Route\Annotation\GetApi;
-use HPlus\Route\Annotation\Mapping;
-use HPlus\Route\Annotation\Query;
 use HPlus\ChatPlugins\Annotation\ApiDefinition;
 use HPlus\ChatPlugins\Annotation\ApiDefinitions;
-use HPlus\Route\Annotation\ApiResponse;
 use HPlus\ChatPlugins\Annotation\ApiServer;
 use HPlus\ChatPlugins\Annotation\ApiVersion;
+use HPlus\ChatPlugins\ApiAnnotation;
+use HPlus\ChatPlugins\ChatPluginBean;
+use HPlus\Route\Annotation\AdminController;
+use HPlus\Route\Annotation\ApiController;
+use HPlus\Route\Annotation\ApiResponse;
 use HPlus\Route\Annotation\Body;
 use HPlus\Route\Annotation\FormData;
+use HPlus\Route\Annotation\GetApi;
+use HPlus\Route\Annotation\Mapping;
 use HPlus\Route\Annotation\Param;
-use HPlus\ChatPlugins\ApiAnnotation;
+use HPlus\Route\Annotation\Query;
+use HPlus\Validate\Annotations\RequestValidation;
 use Hyperf\Contract\ConfigInterface;
 use Hyperf\Di\ReflectionManager;
 use Hyperf\Utils\ApplicationContext;
 use Hyperf\Utils\Arr;
 use Hyperf\Utils\Str;
-use HPlus\Validate\Annotations\RequestValidation;
 
 class ChatPluginsJson
 {
     public $config;
 
-    public $swagger;
+    public $plugins;
 
     public $server;
 
@@ -43,6 +52,7 @@ class ChatPluginsJson
 
     public function addPath($className, $methodName, $path)
     {
+        $plugin = new ChatPluginBean();
 
         $classAnnotation = ApiAnnotation::classMetadata($className);
         $controlerAnno = $classAnnotation[ApiController::class] ?? $classAnnotation[AdminController::class] ?? null;
@@ -53,7 +63,7 @@ class ChatPluginsJson
         $bindServer = $serverAnno ? $serverAnno->name : $this->config->get('server.servers.0.name');
         $servers = $this->config->get('server.servers');
         $servers_name = array_column($servers, 'name');
-        if (!in_array($bindServer, $servers_name)) {
+        if (! in_array($bindServer, $servers_name)) {
             throw new Exception(sprintf('The bind ApiServer name [%s] not found, defined in %s!', $bindServer, $className));
         }
 
@@ -62,7 +72,7 @@ class ChatPluginsJson
         }
 
         $methodAnnotations = ApiAnnotation::methodMetadata($className, $methodName);
-        if (!$controlerAnno || !$methodAnnotations) {
+        if (! $controlerAnno || ! $methodAnnotations) {
             return;
         }
         $params = [];
@@ -76,16 +86,16 @@ class ChatPluginsJson
             if ($option instanceof RequestValidation) {
                 $rules = array_merge($rules, $this->getValidateRule($option));
                 if ($option->dateType == 'json') {
-                    $param = new Body("");
+                    $param = new Body('');
                     $param->rules = $this->getValidateRule($option);
-                    $param->name = "body";
-                    $param->key = "body";
+                    $param->name = 'body';
+                    $param->key = 'body';
                     $params[] = $param;
                     unset($param);
                 }
                 if ($option->dateType == 'form') {
                     foreach ($this->getValidateRule($option) as $key => $item) {
-                        $param = new FormData("");
+                        $param = new FormData('');
                         [$key, $name] = explode('|', $key);
                         $param->key = $key;
                         $param->name = $name;
@@ -116,43 +126,297 @@ class ChatPluginsJson
             }
         }
 
-        $this->makeDefinition($definitionsAnno);
-        $definitionAnno && $this->makeDefinition([$definitionAnno]);
+        # 看看这个需要不 不需要就先隐藏
+        //        $this->makeDefinition($definitionsAnno);
+        //        $definitionAnno && $this->makeDefinition([$definitionAnno]);
 
         $tag = $controlerAnno->tag ?: $className;
-        $this->swagger['tags'][$tag] = [
-            'name' => $tag,
-            'description' => $controlerAnno->description,
-        ];
+
         if ($path[0] !== '/') {
             $path = '/' . $path;
         }
         if ($versionAnno && $versionAnno->version) {
             $path = '/' . $versionAnno->version . $path;
         }
-        $path = str_replace("/_self_path", "", $path);
+        $path = str_replace('/_self_path', '', $path);
         $path = $this->getPath($path);
 
         $method = strtolower($mapping->methods[0] ?? '');
-        $this->swagger['paths'][$path][$method] = [
+
+
+
+        $plugin->addPath($path, $method, [
             'tags' => [$tag],
             'summary' => $mapping->summary ?? '',
             'description' => $mapping->description ?? '',
             'operationId' => implode('', array_map('ucfirst', explode('/', $path))) . ($mapping->methods[0] ?? ''),
             'parameters' => $this->makeParameters($params, $path, $method),
             'produces' => [
-                $consumes
+                $consumes,
             ],
             'responses' => $this->makeResponses($responses, $path, $method),
-        ];
+        ]);
+
         if ($consumes !== null) {
-            $this->swagger['paths'][$path][$method]['consumes'] = [$consumes];
+            $plugin->addPathConsumes($path, $method, [$consumes]);
+
         }
-        if ($mapping && property_exists($mapping, 'security') && $mapping->security && isset($this->swagger['securityDefinitions'])) {
-            foreach ($this->swagger['securityDefinitions'] as $key => $val) {
-                $this->swagger['paths'][$path][$method]['security'][] = [$key => $val['petstore_auth'] ?? []];
+        if ($mapping && property_exists($mapping, 'security') && $mapping->security && isset($plugin['securityDefinitions'])) {
+            foreach ($plugin['securityDefinitions'] as $key => $val) {
+                $plugin->addPathSecurity($path, $method, [$key => $val['petstore_auth'] ?? []]);
             }
         }
+
+
+    }
+
+    public function getTypeByRule($rule)
+    {
+        if (empty($rule)) {
+            return 'string';
+        }
+        $default = explode('|', preg_replace('/\[.*\]/', '', $rule));
+        if (array_intersect($default, ['int', 'lt', 'gt', 'ge'])) {
+            return 'integer';
+        }
+        if (array_intersect($default, ['numeric'])) {
+            return 'number';
+        }
+        if (array_intersect($default, ['array'])) {
+            return 'array';
+        }
+        if (array_intersect($default, ['object'])) {
+            return 'object';
+        }
+        if (array_intersect($default, ['file'])) {
+            return 'file';
+        }
+        return 'string';
+    }
+
+    public function makeParameters($params, $path, $method)
+    {
+        $this->initModel();
+        $method = ucfirst($method);
+        $path = $this->getPath($path);
+        $parameters = [];
+        /** @var Query $item */
+        foreach ($params as $item) {
+            if ($item->rule && $item->rule !== null && in_array('array', explode('|', $item->rule))) {
+                $item->name .= '[]';
+            }
+            switch (true) {
+                case $item instanceof Body:
+                    $parameter = $this->getDefaultParameter($item->key, $item->in, $item->key, $item->required);
+                    $modelName = $method . implode('', array_map('ucfirst', explode('/', $path)));
+                    $this->rules2schema($modelName, $item->rules);
+                    $parameter['schema']['$ref'] = '#/definitions/' . $modelName;
+                    $parameters[$item->key] = $parameter;
+                    break;
+                case $item instanceof Query:
+                    foreach ($item->rules as $keyNameLabel => $rule) {
+                        if (is_numeric($keyNameLabel)) {
+                            $keyNameLabel = $rule;
+                            $rule = '';
+                        }
+                        $fieldNameLabel = explode('|', $keyNameLabel);
+                        $type = $this->getTypeByRule($rule);
+                        $keyName = $fieldNameLabel[0];
+                        $keyLabel = $fieldNameLabel[1] ?? $fieldNameLabel[0];
+                        $parameter = $this->getDefaultParameter($keyName, $item->in, $keyLabel, str_contains($rule, 'required'));
+                        $parameter['type'] = $type;
+                        $parameter['default'] = $item->default[$keyName] ?? '';
+                        $parameters[$keyName] = $parameter;
+                    }
+                    if (empty($parameters)) {
+                        $parameter = $this->getDefaultParameter($item->key, $item->in, $item->key, $item->required);
+                        $parameter['type'] = $this->getTypeByRule($item->rule);
+                        $parameter['default'] = $item->default ?? '';
+                        $parameters[$item->key] = $parameter;
+                    }
+                    break;
+                default:
+                    $parameter = $this->getDefaultParameter($item->key, $item->in, $item->key, $item->required);
+                    $type = $this->getTypeByRule($item->rule);
+                    $parameter['type'] = $type;
+                    $parameter['default'] = $item->default;
+                    $parameters[$item->key] = $parameter;
+                    break;
+            }
+        }
+        return array_values($parameters);
+    }
+
+    public function makeResponses($responses, $path, $method)
+    {
+        $path = $this->getPath($path);
+        $resp = [];
+        /** @var ApiResponse $item */
+        foreach ($responses as $item) {
+            $resp[$item->code] = [
+                'description' => $item->description ?? '',
+            ];
+            if ($item->schema) {
+                if (isset($item->schema['$ref'])) {
+                    $resp[$item->code]['schema']['$ref'] = '#/definitions/' . $item->schema['$ref'];
+                    continue;
+                }
+                // 处理直接返回列表的情况 List<Integer> List<String>
+                if (isset($item->schema[0]) && ! is_array($item->schema[0])) {
+                    $resp[$item->code]['schema']['type'] = 'array';
+                    if (is_int($item->schema[0])) {
+                        $resp[$item->code]['schema']['items'] = [
+                            'type' => 'integer',
+                        ];
+                    } elseif (is_string($item->schema[0])) {
+                        $resp[$item->code]['schema']['items'] = [
+                            'type' => 'string',
+                        ];
+                    }
+                    continue;
+                }
+
+                $modelName = implode('', array_map('ucfirst', explode('/', $path))) . ucfirst($method) . 'Response' . $item->code;
+                $ret = $this->responseSchemaToDefinition($item->schema, $modelName);
+                if ($ret) {
+                    // 处理List<String, Object>
+                    if (isset($item->schema[0]) && is_array($item->schema[0])) {
+                        $resp[$item->code]['schema']['type'] = 'array';
+                        $resp[$item->code]['schema']['items']['$ref'] = '#/definitions/' . $modelName;
+                    } else {
+                        $resp[$item->code]['schema']['$ref'] = '#/definitions/' . $modelName;
+                    }
+                }
+            }
+        }
+
+        return $resp;
+    }
+
+    public function makeDefinition($definitions)
+    {
+        if (! $definitions) {
+            return;
+        }
+        if ($definitions instanceof ApiDefinitions) {
+            $definitions = $definitions->definitions;
+        }
+        foreach ($definitions as $definition) {
+            /** @var ApiDefinition $definition */
+            $defName = $definition->name;
+            $defProps = $definition->properties;
+
+            $formattedProps = [];
+
+            foreach ($defProps as $propKey => $prop) {
+                $propKeyArr = explode('|', $propKey);
+                $propName = $propKeyArr[0];
+                $propVal = [];
+                isset($propKeyArr[1]) && $propVal['description'] = $propKeyArr[1];
+                if (is_array($prop)) {
+                    if (isset($prop['description']) && is_string($prop['description'])) {
+                        $propVal['description'] = $prop['description'];
+                    }
+
+                    if (isset($prop['type']) && is_string($prop['type'])) {
+                        $propVal['type'] = $prop['type'];
+                    }
+
+                    if (isset($prop['default'])) {
+                        $propVal['default'] = $prop['default'];
+                        ! isset($propVal['type']) && $propVal['type'] = is_numeric($propVal['default']) ? 'integer' : 'string';
+                    }
+                    if (isset($prop['$ref'])) {
+                        $propVal['$ref'] = '#/definitions/' . $prop['$ref'];
+                    }
+                } else {
+                    $propVal['default'] = $prop;
+                    $propVal['type'] = is_numeric($prop) ? 'integer' : 'string';
+                }
+                $formattedProps[$propName] = $propVal;
+            }
+            $this->swagger['definitions'][$defName]['properties'] = $formattedProps;
+        }
+    }
+
+    public function responseSchemaToDefinition($schema, $modelName, $level = 0)
+    {
+        if (! $schema) {
+            return false;
+        }
+        $definition = [];
+
+        // 处理 Map<String, String> Map<String, Object> Map<String, List>
+        $schemaContent = $schema;
+        // 处理 List<Map<String, Object>>
+        if (isset($schema[0]) && is_array($schema[0])) {
+            $schemaContent = $schema[0];
+        }
+        foreach ($schemaContent as $keyString => $val) {
+            $property = [];
+            $property['type'] = gettype($val);
+            $keyArray = explode('|', $keyString);
+            $key = $keyArray[0];
+            $_key = str_replace('_', '', $key);
+            $property['description'] = $keyArray[1] ?? '';
+            if (is_array($val)) {
+                $definitionName = $modelName . ucfirst($_key);
+                if ($property['type'] === 'array' && isset($val[0])) {
+                    if (is_array($val[0])) {
+                        $property['type'] = 'array';
+                        $ret = $this->responseSchemaToDefinition($val[0], $definitionName, 1);
+                        $property['items']['$ref'] = '#/definitions/' . $definitionName;
+                    } else {
+                        $property['type'] = 'array';
+                        $property['items']['type'] = gettype($val[0]);
+                    }
+                } else {
+                    // definition引用不能有type
+                    unset($property['type']);
+                    $ret = $this->responseSchemaToDefinition($val, $definitionName, 1);
+                    $property['$ref'] = '#/definitions/' . $definitionName;
+                }
+                if (isset($ret)) {
+                    $this->swagger['definitions'][$definitionName] = $ret;
+                }
+            } else {
+                $property['default'] = $val;
+            }
+
+            $definition['properties'][$key] = $property;
+        }
+
+        if ($level === 0) {
+            $this->swagger['definitions'][$modelName] = $definition;
+        }
+
+        return $definition;
+    }
+
+    public function save()
+    {
+        $this->swagger['tags'] = array_values($this->swagger['tags'] ?? []);
+        $outputFile = $this->config->get('swagger.output_file');
+        if (! $outputFile) {
+            throw new Exception('/config/autoload/swagger.php need set output_file');
+        }
+        $outputFile = str_replace('{server}', $this->server, $outputFile);
+        file_put_contents($outputFile, json_encode($this->swagger, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+        print_r('Generate swagger.json success!' . PHP_EOL);
+    }
+
+    protected function getPrefix(string $className, string $prefix): string
+    {
+        if (! $prefix) {
+            $handledNamespace = Str::replaceFirst('Controller', '', Str::after($className, '\\Controller\\'));
+            $handledNamespace = str_replace('\\', '/', $handledNamespace);
+            $prefix = Str::snake($handledNamespace);
+            $prefix = str_replace('/_', '/', $prefix);
+        }
+        if ($prefix[0] !== '/') {
+            $prefix = '/' . $prefix;
+        }
+        return $prefix;
     }
 
     private function getConsumes($type = 'json')
@@ -179,7 +443,9 @@ class ChatPluginsJson
                     $key = $rule;
                     $rule = $rolesModel['rule'][$rule] ?? '';
                 }
-                if (isset($fields[$key])) $key = $key . "|" . $fields[$key];
+                if (isset($fields[$key])) {
+                    $key = $key . '|' . $fields[$key];
+                }
                 $newRules[$key] = $rule;
             }
             return $newRules;
@@ -252,30 +518,6 @@ class ChatPluginsJson
         $this->swagger['definitions'][$name] = $schema;
     }
 
-    public function getTypeByRule($rule)
-    {
-        if (empty($rule)) {
-            return 'string';
-        }
-        $default = explode('|', preg_replace('/\[.*\]/', '', $rule));
-        if (array_intersect($default, ['int', 'lt', 'gt', 'ge'])) {
-            return 'integer';
-        }
-        if (array_intersect($default, ['numeric'])) {
-            return 'number';
-        }
-        if (array_intersect($default, ['array'])) {
-            return 'array';
-        }
-        if (array_intersect($default, ['object'])) {
-            return 'object';
-        }
-        if (array_intersect($default, ['file'])) {
-            return 'file';
-        }
-        return 'string';
-    }
-
     private function getPath($path)
     {
         $urls = explode(':', $path);
@@ -294,230 +536,5 @@ class ChatPluginsJson
             'description' => empty($description) ? $name : $description,
             'required' => $required,
         ];
-    }
-
-    public function makeParameters($params, $path, $method)
-    {
-        $this->initModel();
-        $method = ucfirst($method);
-        $path = $this->getPath($path);
-        $parameters = [];
-        /** @var Query $item */
-        foreach ($params as $item) {
-            if ($item->rule && $item->rule !== null && in_array('array', explode('|', $item->rule))) {
-                $item->name .= '[]';
-            }
-            switch (true) {
-                case $item instanceof Body:
-                    $parameter = $this->getDefaultParameter($item->key, $item->in, $item->key, $item->required);
-                    $modelName = $method . implode('', array_map('ucfirst', explode('/', $path)));
-                    $this->rules2schema($modelName, $item->rules);
-                    $parameter['schema']['$ref'] = '#/definitions/' . $modelName;
-                    $parameters[$item->key] = $parameter;
-                    break;
-                case $item instanceof Query:
-                    foreach ($item->rules as $keyNameLabel => $rule) {
-                        if (is_numeric($keyNameLabel)) {
-                            $keyNameLabel = $rule;
-                            $rule = '';
-                        }
-                        $fieldNameLabel = explode('|', $keyNameLabel);
-                        $type = $this->getTypeByRule($rule);
-                        $keyName = $fieldNameLabel[0];
-                        $keyLabel = $fieldNameLabel[1] ?? $fieldNameLabel[0];
-                        $parameter = $this->getDefaultParameter($keyName, $item->in, $keyLabel, str_contains($rule, 'required'));
-                        $parameter['type'] = $type;
-                        $parameter['default'] = $item->default[$keyName] ?? '';
-                        $parameters[$keyName] = $parameter;
-                    }
-                    if (empty($parameters)){
-                        $parameter = $this->getDefaultParameter($item->key, $item->in, $item->key, $item->required);
-                        $parameter['type'] = $this->getTypeByRule($item->rule);
-                        $parameter['default'] = $item->default ?? '';
-                        $parameters[$item->key] = $parameter;
-                    }
-                    break;
-                default:
-                    $parameter = $this->getDefaultParameter($item->key, $item->in, $item->key, $item->required);
-                    $type = $this->getTypeByRule($item->rule);
-                    $parameter['type'] = $type;
-                    $parameter['default'] = $item->default;
-                    $parameters[$item->key] = $parameter;
-                    break;
-            }
-        }
-        return array_values($parameters);
-    }
-
-    public function makeResponses($responses, $path, $method)
-    {
-        $path = $this->getPath($path);
-        $resp = [];
-        /** @var ApiResponse $item */
-        foreach ($responses as $item) {
-            $resp[$item->code] = [
-                'description' => $item->description ?? '',
-            ];
-            if ($item->schema) {
-                if (isset($item->schema['$ref'])) {
-                    $resp[$item->code]['schema']['$ref'] = '#/definitions/' . $item->schema['$ref'];
-                    continue;
-                }
-                // 处理直接返回列表的情况 List<Integer> List<String>
-                if (isset($item->schema[0]) && !is_array($item->schema[0])) {
-                    $resp[$item->code]['schema']['type'] = 'array';
-                    if (is_int($item->schema[0])) {
-                        $resp[$item->code]['schema']['items'] = [
-                            "type" => 'integer',
-                        ];
-                    } else if (is_string($item->schema[0])) {
-                        $resp[$item->code]['schema']['items'] = [
-                            "type" => 'string',
-                        ];
-                    }
-                    continue;
-                }
-
-                $modelName = implode('', array_map('ucfirst', explode('/', $path))) . ucfirst($method) . 'Response' . $item->code;
-                $ret = $this->responseSchemaToDefinition($item->schema, $modelName);
-                if ($ret) {
-                    // 处理List<String, Object>
-                    if (isset($item->schema[0]) && is_array($item->schema[0])) {
-                        $resp[$item->code]['schema']['type'] = 'array';
-                        $resp[$item->code]['schema']['items']['$ref'] = '#/definitions/' . $modelName;
-                    } else {
-                        $resp[$item->code]['schema']['$ref'] = '#/definitions/' . $modelName;
-                    }
-                }
-            }
-        }
-
-        return $resp;
-    }
-
-    public function makeDefinition($definitions)
-    {
-        if (!$definitions) {
-            return;
-        }
-        if ($definitions instanceof ApiDefinitions) {
-            $definitions = $definitions->definitions;
-        }
-        foreach ($definitions as $definition) {
-            /** @var $definition ApiDefinition */
-            $defName = $definition->name;
-            $defProps = $definition->properties;
-
-            $formattedProps = [];
-
-            foreach ($defProps as $propKey => $prop) {
-                $propKeyArr = explode('|', $propKey);
-                $propName = $propKeyArr[0];
-                $propVal = [];
-                isset($propKeyArr[1]) && $propVal['description'] = $propKeyArr[1];
-                if (is_array($prop)) {
-                    if (isset($prop['description']) && is_string($prop['description'])) {
-                        $propVal['description'] = $prop['description'];
-                    }
-
-                    if (isset($prop['type']) && is_string($prop['type'])) {
-                        $propVal['type'] = $prop['type'];
-                    }
-
-                    if (isset($prop['default'])) {
-                        $propVal['default'] = $prop['default'];
-                        !isset($propVal['type']) && $propVal['type'] = is_numeric($propVal['default']) ? 'integer' : 'string';
-                    }
-                    if (isset($prop['$ref'])) {
-                        $propVal['$ref'] = '#/definitions/' . $prop['$ref'];
-                    }
-                } else {
-                    $propVal['default'] = $prop;
-                    $propVal['type'] = is_numeric($prop) ? 'integer' : 'string';
-                }
-                $formattedProps[$propName] = $propVal;
-            }
-            $this->swagger['definitions'][$defName]['properties'] = $formattedProps;
-        }
-    }
-
-    public function responseSchemaToDefinition($schema, $modelName, $level = 0)
-    {
-        if (!$schema) {
-            return false;
-        }
-        $definition = [];
-
-        // 处理 Map<String, String> Map<String, Object> Map<String, List>
-        $schemaContent = $schema;
-        // 处理 List<Map<String, Object>>
-        if (isset($schema[0]) && is_array($schema[0])) {
-            $schemaContent = $schema[0];
-        }
-        foreach ($schemaContent as $keyString => $val) {
-            $property = [];
-            $property['type'] = gettype($val);
-            $keyArray = explode('|', $keyString);
-            $key = $keyArray[0];
-            $_key = str_replace('_', '', $key);
-            $property['description'] = $keyArray[1] ?? '';
-            if (is_array($val)) {
-                $definitionName = $modelName . ucfirst($_key);
-                if ($property['type'] === 'array' && isset($val[0])) {
-                    if (is_array($val[0])) {
-                        $property['type'] = 'array';
-                        $ret = $this->responseSchemaToDefinition($val[0], $definitionName, 1);
-                        $property['items']['$ref'] = '#/definitions/' . $definitionName;
-                    } else {
-                        $property['type'] = 'array';
-                        $property['items']['type'] = gettype($val[0]);
-                    }
-                } else {
-                    // definition引用不能有type
-                    unset($property['type']);
-                    $ret = $this->responseSchemaToDefinition($val, $definitionName, 1);
-                    $property['$ref'] = '#/definitions/' . $definitionName;
-                }
-                if (isset($ret)) {
-                    $this->swagger['definitions'][$definitionName] = $ret;
-                }
-            } else {
-                $property['default'] = $val;
-            }
-
-            $definition['properties'][$key] = $property;
-        }
-
-        if ($level === 0) {
-            $this->swagger['definitions'][$modelName] = $definition;
-        }
-
-        return $definition;
-    }
-
-    public function save()
-    {
-        $this->swagger['tags'] = array_values($this->swagger['tags'] ?? []);
-        $outputFile = $this->config->get('swagger.output_file');
-        if (!$outputFile) {
-            throw new Exception('/config/autoload/swagger.php need set output_file');
-        }
-        $outputFile = str_replace('{server}', $this->server, $outputFile);
-        file_put_contents($outputFile, json_encode($this->swagger, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
-        print_r('Generate swagger.json success!' . PHP_EOL);
-    }
-
-    protected function getPrefix(string $className, string $prefix): string
-    {
-        if (!$prefix) {
-            $handledNamespace = Str::replaceFirst('Controller', '', Str::after($className, '\\Controller\\'));
-            $handledNamespace = str_replace('\\', '/', $handledNamespace);
-            $prefix = Str::snake($handledNamespace);
-            $prefix = str_replace('/_', '/', $prefix);
-        }
-        if ($prefix[0] !== '/') {
-            $prefix = '/' . $prefix;
-        }
-        return $prefix;
     }
 }
