@@ -64,7 +64,9 @@ class BootAppConfListener implements ListenerInterface
                                 'openai' => [],
                             ];
                         }
-                        $plugins[$plugin->getPluginId()]['openai'] = $plugin->toArray() + $plugins[$plugin->getPluginId()]['openai'];
+                        $paths = $plugins[$plugin->getPluginId()]['openai']['paths'] ?? [];
+                        $plugins[$plugin->getPluginId()]['openai']['paths'] = array_merge($paths, $plugin->getPaths());
+                        $plugins[$plugin->getPluginId()]['openai'] += $plugin->toArray();
                     }
                 }
             });
