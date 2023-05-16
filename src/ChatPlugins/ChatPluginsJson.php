@@ -9,6 +9,7 @@ declare(strict_types=1);
  * @contact  group@hyperf.io
  * @license  https://github.com/hyperf/hyperf/blob/master/LICENSE
  */
+
 namespace HPlus\ChatPlugins\ChatPlugins;
 
 use Exception;
@@ -16,6 +17,7 @@ use HPlus\ChatPlugins\Annotation\ApiDefinition;
 use HPlus\ChatPlugins\Annotation\ApiDefinitions;
 use HPlus\ChatPlugins\Annotation\ApiServer;
 use HPlus\ChatPlugins\Annotation\ApiVersion;
+use HPlus\ChatPlugins\Annotation\ChatPluginAnnotation;
 use HPlus\ChatPlugins\ApiAnnotation;
 use HPlus\ChatPlugins\ChatPluginBean;
 use HPlus\Route\Annotation\AdminController;
@@ -33,6 +35,7 @@ use Hyperf\Di\ReflectionManager;
 use Hyperf\Utils\ApplicationContext;
 use Hyperf\Utils\Arr;
 use Hyperf\Utils\Str;
+use phpseclib3\Crypt\EC\Curves\nistb233;
 
 class ChatPluginsJson
 {
@@ -46,34 +49,37 @@ class ChatPluginsJson
     {
         $container = ApplicationContext::getContainer();
         $this->config = $container->get(ConfigInterface::class);
-        $this->swagger = $this->config->get('swagger.swagger');
+        $this->plugins = $this->config->get('plugins.openapi');
         $this->server = $server;
     }
 
-    public function addPath($className, $methodName, $path)
+    public function addPath($className, $methodName, $path): ?ChatPluginBean
     {
         $plugin = new ChatPluginBean();
-
         $classAnnotation = ApiAnnotation::classMetadata($className);
         $controlerAnno = $classAnnotation[ApiController::class] ?? $classAnnotation[AdminController::class] ?? null;
         $serverAnno = $classAnnotation[ApiServer::class] ?? null;
         $versionAnno = $classAnnotation[ApiVersion::class] ?? null;
         $definitionsAnno = $classAnnotation[ApiDefinitions::class] ?? null;
-        $definitionAnno = $classAnnotation[ApiDefinition::class] ?? null;
         $bindServer = $serverAnno ? $serverAnno->name : $this->config->get('server.servers.0.name');
         $servers = $this->config->get('server.servers');
         $servers_name = array_column($servers, 'name');
-        if (! in_array($bindServer, $servers_name)) {
+
+        /** @var ChatPluginAnnotation $chatPluginConfig */
+        $chatPluginConfig = $classAnnotation[ChatPluginAnnotation::class] ?? null;
+        if (empty($chatPluginConfig)) {
+            return null;
+        }
+        $plugin->setAiPlugin($chatPluginConfig);
+        $plugin->setPluginId($chatPluginConfig->getPluginId());
+
+        if (!in_array($bindServer, $servers_name)) {
             throw new Exception(sprintf('The bind ApiServer name [%s] not found, defined in %s!', $bindServer, $className));
         }
 
-        if ($bindServer !== $this->server) {
-            return;
-        }
-
         $methodAnnotations = ApiAnnotation::methodMetadata($className, $methodName);
-        if (! $controlerAnno || ! $methodAnnotations) {
-            return;
+        if (!$controlerAnno || !$methodAnnotations) {
+            return null;
         }
         $params = [];
         $responses = [];
@@ -131,6 +137,7 @@ class ChatPluginsJson
         //        $definitionAnno && $this->makeDefinition([$definitionAnno]);
 
         $tag = $controlerAnno->tag ?: $className;
+        $plugin->addTags(['name' => $tag]);
 
         if ($path[0] !== '/') {
             $path = '/' . $path;
@@ -144,7 +151,6 @@ class ChatPluginsJson
         $method = strtolower($mapping->methods[0] ?? '');
 
 
-
         $plugin->addPath($path, $method, [
             'tags' => [$tag],
             'summary' => $mapping->summary ?? '',
@@ -156,17 +162,13 @@ class ChatPluginsJson
             ],
             'responses' => $this->makeResponses($responses, $path, $method),
         ]);
-
-        if ($consumes !== null) {
-            $plugin->addPathConsumes($path, $method, [$consumes]);
-
-        }
-        if ($mapping && property_exists($mapping, 'security') && $mapping->security && isset($plugin['securityDefinitions'])) {
-            foreach ($plugin['securityDefinitions'] as $key => $val) {
+        if ($mapping && property_exists($mapping, 'security') && $mapping->security && isset($this->plugins['securityDefinitions'])) {
+            foreach ($this->plugins['securityDefinitions'] as $key => $val) {
                 $plugin->addPathSecurity($path, $method, [$key => $val['petstore_auth'] ?? []]);
             }
         }
 
+        return $plugin;
 
     }
 
@@ -262,7 +264,7 @@ class ChatPluginsJson
                     continue;
                 }
                 // 处理直接返回列表的情况 List<Integer> List<String>
-                if (isset($item->schema[0]) && ! is_array($item->schema[0])) {
+                if (isset($item->schema[0]) && !is_array($item->schema[0])) {
                     $resp[$item->code]['schema']['type'] = 'array';
                     if (is_int($item->schema[0])) {
                         $resp[$item->code]['schema']['items'] = [
@@ -295,7 +297,7 @@ class ChatPluginsJson
 
     public function makeDefinition($definitions)
     {
-        if (! $definitions) {
+        if (!$definitions) {
             return;
         }
         if ($definitions instanceof ApiDefinitions) {
@@ -324,7 +326,7 @@ class ChatPluginsJson
 
                     if (isset($prop['default'])) {
                         $propVal['default'] = $prop['default'];
-                        ! isset($propVal['type']) && $propVal['type'] = is_numeric($propVal['default']) ? 'integer' : 'string';
+                        !isset($propVal['type']) && $propVal['type'] = is_numeric($propVal['default']) ? 'integer' : 'string';
                     }
                     if (isset($prop['$ref'])) {
                         $propVal['$ref'] = '#/definitions/' . $prop['$ref'];
@@ -335,13 +337,13 @@ class ChatPluginsJson
                 }
                 $formattedProps[$propName] = $propVal;
             }
-            $this->swagger['definitions'][$defName]['properties'] = $formattedProps;
+            $this->plugins['definitions'][$defName]['properties'] = $formattedProps;
         }
     }
 
     public function responseSchemaToDefinition($schema, $modelName, $level = 0)
     {
-        if (! $schema) {
+        if (!$schema) {
             return false;
         }
         $definition = [];
@@ -377,7 +379,7 @@ class ChatPluginsJson
                     $property['$ref'] = '#/definitions/' . $definitionName;
                 }
                 if (isset($ret)) {
-                    $this->swagger['definitions'][$definitionName] = $ret;
+                    $this->plugins['definitions'][$definitionName] = $ret;
                 }
             } else {
                 $property['default'] = $val;
@@ -387,7 +389,7 @@ class ChatPluginsJson
         }
 
         if ($level === 0) {
-            $this->swagger['definitions'][$modelName] = $definition;
+            $this->plugins['definitions'][$modelName] = $definition;
         }
 
         return $definition;
@@ -395,9 +397,9 @@ class ChatPluginsJson
 
     public function save()
     {
-        $this->swagger['tags'] = array_values($this->swagger['tags'] ?? []);
+        $this->plugins['tags'] = array_values($this->plugins['tags'] ?? []);
         $outputFile = $this->config->get('swagger.output_file');
-        if (! $outputFile) {
+        if (!$outputFile) {
             throw new Exception('/config/autoload/swagger.php need set output_file');
         }
         $outputFile = str_replace('{server}', $this->server, $outputFile);
@@ -407,7 +409,7 @@ class ChatPluginsJson
 
     protected function getPrefix(string $className, string $prefix): string
     {
-        if (! $prefix) {
+        if (!$prefix) {
             $handledNamespace = Str::replaceFirst('Controller', '', Str::after($className, '\\Controller\\'));
             $handledNamespace = str_replace('\\', '/', $handledNamespace);
             $prefix = Str::snake($handledNamespace);
@@ -470,8 +472,8 @@ class ChatPluginsJson
             ],
         ];
 
-        $this->swagger['definitions']['ModelArray'] = $arraySchema;
-        $this->swagger['definitions']['ModelObject'] = $objectSchema;
+        $this->plugins['definitions']['ModelArray'] = $arraySchema;
+        $this->plugins['definitions']['ModelObject'] = $objectSchema;
     }
 
     private function rules2schema($name, $rules)
@@ -515,7 +517,7 @@ class ChatPluginsJson
 
             $schema['properties'][$fieldName] = $property;
         }
-        $this->swagger['definitions'][$name] = $schema;
+        $this->plugins['definitions'][$name] = $schema;
     }
 
     private function getPath($path)

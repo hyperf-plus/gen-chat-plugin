@@ -22,7 +22,7 @@ class BootAppConfListener implements ListenerInterface
         ];
     }
 
-    public function process(object $event):void
+    public function process(object $event): void
     {
         $container = ApplicationContext::getContainer();
         $logger = $container->get(LoggerFactory::class)->get('swagger');
@@ -45,25 +45,40 @@ class BootAppConfListener implements ListenerInterface
         foreach ($servers as $server) {
             $swagger = new ChatPluginsJson($server['name']);
             #跳过非http的服务
-            if ($server['name'] != 'http'){
+            if ($server['name'] != 'http') {
                 continue;
             }
-            
+
             $ignore = $config->get('swagger.ignore', function ($controller, $action) {
                 return false;
             });
-            array_walk_recursive($data, function ($item) use ($swagger, $ignore) {
+            $plugins = [];
+            array_walk_recursive($data, function ($item) use ($swagger, $ignore, &$plugins) {
                 if ($item instanceof Handler && !($item->callback instanceof \Closure)) {
                     [$controller, $action] = $this->prepareHandler($item->callback);
-
-
-
-
-                    (!$ignore($controller, $action)) && $swagger->addPath($controller, $action, $item->route);
+                    if (!$ignore($controller, $action)&& $plugin = $swagger->addPath($controller, $action, $item->route)) {
+                        $plugins[$plugin->getPluginId()][] = $plugin;
+                    }
                 }
             });
 
-            $swagger->save();
+            /** @var ChatPluginBean $plugin */
+            foreach ($plugins as $plugin_id => $plugin) {
+                p($plugin);
+                //
+                // $outputFile = str_replace('{server}', $this->server, $outputFile);
+                // file_put_contents($outputFile, json_encode($this->swagger, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+                // print_r('Generate swagger.json success!' . PHP_EOL);
+                //
+                //
+
+            }
+
+
+            // $plugin->getAiPlugin();
+            //
+
+            // $swagger->save();
         }
     }
 

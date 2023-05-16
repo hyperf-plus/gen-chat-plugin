@@ -35,8 +35,8 @@ class ConfigProvider
                 [
                     'id' => 'swagger',
                     'description' => 'hyperf-swagger',
-                    'source' => __DIR__ . '/../publish/swagger.php',
-                    'destination' => BASE_PATH . '/config/autoload/swagger.php',
+                    'source' => __DIR__ . '/../publish/plugins.php',
+                    'destination' => BASE_PATH . '/config/autoload/plugins.php',
                 ]
             ],
         ];

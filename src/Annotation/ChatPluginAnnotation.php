@@ -13,16 +13,37 @@ use Hyperf\Di\Annotation\AbstractAnnotation;
 #[Attribute(Attribute::TARGET_CLASS)]
 class ChatPluginAnnotation extends AbstractAnnotation
 {
-    protected string $schema_version = 'v1';
-    protected string $name_for_human = '';
-    protected string $name_for_model = '';
-    protected string $description_for_human = '';
-    protected string $description_for_model = '';
-    protected array $auth = [];
-    protected array $api = [];
-    protected string $logo_url = '';
-    protected string $contact_email = '';
-    protected string $legal_info_url = '';
+    public function __construct(
+        protected string $plugin_id = '',
+        protected string $schema_version = 'v1',
+        protected string $name_for_human = '',
+        protected string $name_for_model = '',
+        protected string $description_for_human = '',
+        protected string $description_for_model = '',
+        protected array  $auth = [],
+        protected array  $api = [],
+        protected string $logo_url = '',
+        protected string $contact_email = '',
+        protected string $legal_info_url = '',
+    )
+    {
+    }
+
+    /**
+     * @return string
+     */
+    public function getPluginId(): string
+    {
+        return $this->plugin_id;
+    }
+
+    /**
+     * @param string $plugin_id
+     */
+    public function setPluginId(string $plugin_id): void
+    {
+        $this->plugin_id = $plugin_id;
+    }
 
     /**
      * @return string

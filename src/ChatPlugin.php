@@ -6,10 +6,11 @@ namespace HPlus\ChatPlugins;
 
 use Hyperf\Contract\ConfigInterface;
 use Hyperf\HttpMessage\Stream\SwooleStream;
+use Hyperf\HttpServer\Annotation\GetMapping;
 use Hyperf\HttpServer\Contract\ResponseInterface;
 use Hyperf\Utils\ApplicationContext;
 
-#[\Hyperf\HttpServer\Annotation\Controller(prefix: '/')]
+#[\Hyperf\HttpServer\Annotation\Controller]
 class ChatPlugin
 {
     protected ConfigInterface $config;
@@ -22,7 +23,7 @@ class ChatPlugin
         $this->response = ApplicationContext::getContainer()->get(ResponseInterface::class);
     }
 
-    #[\Hyperf\HttpServer\Annotation\GetMapping(path: '/{plugin_id}/.well-known/ai-plugin.json')]
+    #[GetMapping(path: '/{plugin_id}/.well-known/ai-plugin.json')]
     public function plugin(string $plugin_id)
     {
         $output_dir = trim($this->config->get('plugins.php.output_dir') ?: 'runtime/plugin', '/');
@@ -31,7 +32,7 @@ class ChatPlugin
         return $this->response->json(json_decode($data, true));
     }
 
-    #[\Hyperf\HttpServer\Annotation\GetMapping(path: '/{plugin_id}}/openapi.yaml')]
+    #[GetMapping(path: '/{plugin_id}}/openapi.yaml')]
     public function openai(string $plugin_id)
     {
         $output_dir = trim($this->config->get('plugins.php.output_dir') ?: 'runtime/plugin', '/');

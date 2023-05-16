@@ -17,14 +17,36 @@ use HPlus\ChatPlugins\Annotation\ChatPluginAnnotation;
 class ChatPluginBean
 {
     public function __construct(
-        public string                $plugin_id = '',
-        public string                $name = '',
-        public string                $info = '',
-        public array                 $servers = [],
-        public array                 $paths = [],
-        public ?ChatPluginAnnotation $aiPlugin = null,
+        protected string                $plugin_id = '',
+        protected string                $name = '',
+        protected array                 $tags = [],
+        protected string                $info = '',
+        protected array                 $servers = [],
+        protected array                 $paths = [],
+        protected ?ChatPluginAnnotation $aiPlugin = null,
     )
     {
+    }
+
+    public function addTags(array $tags): void
+    {
+        $this->tags[] = $tags;
+    }
+
+    /**
+     * @return array
+     */
+    public function getTags(): array
+    {
+        return $this->tags;
+    }
+
+    /**
+     * @param array $tags
+     */
+    public function setTags(array $tags): void
+    {
+        $this->tags = $tags;
     }
 
     /**
