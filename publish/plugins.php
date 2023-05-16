@@ -1,12 +1,9 @@
 <?php
 
 return [
-    // enable false 将不会生成 swagger 文件
-    'enable' => env('APP_ENV') !== 'production',
-    // swagger 配置的输出文件
-    // 当你有多个 http server 时, 可以在输出文件的名称中增加 {server} 字面变量
-    // 比如 /public/swagger/swagger_{server}.json
-    'output_file' => BASE_PATH . '/runtime/swagger.json',
+    'enable' => true,
+    'output_dir' => BASE_PATH . '/runtime/plugin',
+    'base_uri' => 'https://example.com',
     // 忽略的hook, 非必须 用于忽略符合条件的接口, 将不会输出到上定义的文件中
     'ignore' => function ($controller, $action) {
         return false;
