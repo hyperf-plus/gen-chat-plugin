@@ -4,6 +4,8 @@ declare(strict_types=1);
 namespace HPlus\ChatPlugins\Annotation;
 
 use Attribute;
+use Hyperf\Context\ApplicationContext;
+use Hyperf\Contract\ConfigInterface;
 use Hyperf\Di\Annotation\AbstractAnnotation;
 
 /**
@@ -207,14 +209,21 @@ class ChatPluginAnnotation extends AbstractAnnotation
 
     public function toArray(): array
     {
-        $item = [];
+        $config = ApplicationContext::getContainer()->get(ConfigInterface::class);
+        $items = $config->get('plugins.plugin') ?: [];
+        foreach ($items as $k => $v) {
+            if (property_exists($this, $k)) {
+                $this->{$k} = $v;
+            }
+        }
+        $items = [];
         foreach ($this as $k => $v) {
             if ($k == 'plugin_id') {
                 continue;
             }
-            $item[$k] = $v;
+            $items[$k] = $v;
         }
-        return $item;
+        return $items;
     }
 
 }

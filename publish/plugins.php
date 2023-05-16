@@ -8,6 +8,15 @@ return [
     'ignore' => function ($controller, $action) {
         return false;
     },
+    'plugin' => [
+        'schema_version' => 'v1',
+        'auth' => [
+            'type' => 'none',
+        ],
+        'logo_url' => '',
+        'contact_email' => '',
+        'legal_info_url' => '',
+    ],
     // openapi 的基础配置
     'openapi' => [
         'openapi' => '3.1.0',

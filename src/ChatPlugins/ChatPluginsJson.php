@@ -71,8 +71,17 @@ class ChatPluginsJson
         if (empty($chatPluginConfig)) {
             return null;
         }
+        $base_uri = trim($this->config->get('plugins.base_uri') ?: '', '/');
+        $chatPluginConfig->setApi([
+            'type' => 'openapi',
+            'url' => sprintf('%s/%s/openapi.yaml', $base_uri, $chatPluginConfig->getPluginId()),
+            'is_user_authenticated' => false,
+        ]);
         $plugin->setAiPlugin($chatPluginConfig);
         $plugin->setPluginId($chatPluginConfig->getPluginId());
+        $plugin->setServers([
+            'url' => $base_uri,
+        ]);
 
         if (!in_array($bindServer, $servers_name)) {
             throw new Exception(sprintf('The bind ApiServer name [%s] not found, defined in %s!', $bindServer, $className));
