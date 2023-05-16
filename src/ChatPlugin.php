@@ -1,43 +1,40 @@
 <?php
 
 declare (strict_types=1);
+
 namespace HPlus\ChatPlugins;
 
-use GuzzleHttp\Psr7\Stream;
 use Hyperf\Contract\ConfigInterface;
+use Hyperf\HttpMessage\Stream\SwooleStream;
+use Hyperf\HttpServer\Contract\ResponseInterface;
 use Hyperf\Utils\ApplicationContext;
-use Psr\Http\Message\StreamInterface;
-#[\Hyperf\HttpServer\Annotation\AutoController(prefix: '/swagger')]
+
+#[\Hyperf\HttpServer\Annotation\Controller(prefix: '/')]
 class ChatPlugin
 {
-    /**
-     * @var ConfigInterface $config
-     */
-    protected $config;
-    
+    protected ConfigInterface $config;
+
+    protected ResponseInterface $response;
+
     public function __construct()
     {
         $this->config = ApplicationContext::getContainer()->get(ConfigInterface::class);
+        $this->response = ApplicationContext::getContainer()->get(ResponseInterface::class);
     }
-    
-    public function plugin()
-    {
-        if (!$this->config->get('swagger.enable', false)) {
-            return 'swagger not start';
-        }
-        $domain = $this->config->get('swagger.host', '');
-        $url = $domain . '/swagger/api?s=' . time();
-        $res = ApplicationContext::getContainer()->get(ResponseInterface::class);
 
-        return $res->withBody(new SwooleStream(""))->withHeader('content-type', 'text/html; charset=utf8');
-    }
-    
-    public function openai()
+    #[\Hyperf\HttpServer\Annotation\GetMapping(path: '/{plugin_id}/.well-known/ai-plugin.json')]
+    public function plugin(string $plugin_id)
     {
-        if (!$this->config->get('swagger.enable', false)) {
-            return 'swagger not start';
-        }
-        $domain = $this->config->get('swagger.output_file', '');
-        return json_decode(file_get_contents($domain), true);
+        $json = file_get_contents(BASE_PATH . '/runtime/plugin/' . $plugin_id . '/ai-plugin.json');
+        return $this->response->json(json_decode($json, true));
+    }
+
+    #[\Hyperf\HttpServer\Annotation\GetMapping(path: '/{plugin_id}}/openapi.yaml')]
+    public function openai(string $plugin_id)
+    {
+        $data = file_get_contents(BASE_PATH . '/runtime/plugin/' . $plugin_id . '/openapi.yaml');
+        /** @var ResponseInterface $response */
+        return $this->response->withAddedHeader('content-type', 'text/yaml; charset=utf-8')
+            ->withBody(new SwooleStream((string)$data));
     }
 }
