@@ -280,9 +280,9 @@ class ChatPluginsJson
         $resp = [];
         /** @var ApiResponse $item */
         foreach ($responses as $item) {
-            $resp[$item->code] = [
-                'description' => $item->description ?? '',
-            ];
+            // $resp[$item->code] = [
+            //     'description' => $item->description ?? '',
+            // ];
             if ($item->schema) {
                 if (isset($item->schema['$ref'])) {
                     $resp[$item->code]['schema']['$ref'] = '#/definitions/' . $item->schema['$ref'];
