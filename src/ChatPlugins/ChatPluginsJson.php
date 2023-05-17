@@ -9,6 +9,7 @@ declare(strict_types=1);
  * @contact  group@hyperf.io
  * @license  https://github.com/hyperf/hyperf/blob/master/LICENSE
  */
+
 namespace HPlus\ChatPlugins\ChatPlugins;
 
 use Exception;
@@ -80,15 +81,15 @@ class ChatPluginsJson
         $plugin->setServers([
             [
                 'url' => $base_uri,
-            ]
+            ],
         ]);
 
-        if (! in_array($bindServer, $servers_name)) {
+        if (!in_array($bindServer, $servers_name)) {
             throw new Exception(sprintf('The bind ApiServer name [%s] not found, defined in %s!', $bindServer, $className));
         }
 
         $methodAnnotations = ApiAnnotation::methodMetadata($className, $methodName);
-        if (! $controlerAnno || ! $methodAnnotations) {
+        if (!$controlerAnno || !$methodAnnotations) {
             return null;
         }
         $params = [];
@@ -165,6 +166,7 @@ class ChatPluginsJson
         foreach ($parameters as $k => $parameter) {
             $in = $parameter['in'] ?? '';
             if ($in == 'body') {
+                unset($parameters[$k]);
                 $schema = $parameter['schema'] ?? [];
                 $requestBody = [
                     'content' => [
@@ -287,7 +289,7 @@ class ChatPluginsJson
                     continue;
                 }
                 // 处理直接返回列表的情况 List<Integer> List<String>
-                if (isset($item->schema[0]) && ! is_array($item->schema[0])) {
+                if (isset($item->schema[0]) && !is_array($item->schema[0])) {
                     $resp[$item->code]['schema']['type'] = 'array';
                     if (is_int($item->schema[0])) {
                         $resp[$item->code]['schema']['items'] = [
@@ -320,7 +322,7 @@ class ChatPluginsJson
 
     public function makeDefinition($definitions)
     {
-        if (! $definitions) {
+        if (!$definitions) {
             return;
         }
         if ($definitions instanceof ApiDefinitions) {
@@ -349,7 +351,7 @@ class ChatPluginsJson
 
                     if (isset($prop['default'])) {
                         $propVal['default'] = $prop['default'];
-                        ! isset($propVal['type']) && $propVal['type'] = is_numeric($propVal['default']) ? 'integer' : 'string';
+                        !isset($propVal['type']) && $propVal['type'] = is_numeric($propVal['default']) ? 'integer' : 'string';
                     }
                     if (isset($prop['$ref'])) {
                         $propVal['$ref'] = '#/definitions/' . $prop['$ref'];
@@ -366,7 +368,7 @@ class ChatPluginsJson
 
     public function responseSchemaToDefinition($schema, $modelName, $level = 0)
     {
-        if (! $schema) {
+        if (!$schema) {
             return false;
         }
         $definition = [];
@@ -422,7 +424,7 @@ class ChatPluginsJson
     {
         $this->plugins['tags'] = array_values($this->plugins['tags'] ?? []);
         $outputFile = $this->config->get('swagger.output_file');
-        if (! $outputFile) {
+        if (!$outputFile) {
             throw new Exception('/config/autoload/swagger.php need set output_file');
         }
         $outputFile = str_replace('{server}', $this->server, $outputFile);
@@ -432,7 +434,7 @@ class ChatPluginsJson
 
     protected function getPrefix(string $className, string $prefix): string
     {
-        if (! $prefix) {
+        if (!$prefix) {
             $handledNamespace = Str::replaceFirst('Controller', '', Str::after($className, '\\Controller\\'));
             $handledNamespace = str_replace('\\', '/', $handledNamespace);
             $prefix = Str::snake($handledNamespace);
