@@ -160,12 +160,28 @@ class ChatPluginsJson
 
         $method = strtolower($mapping->methods[0] ?? '');
 
+        $requestBody = [];
+        $parameters = $this->makeParameters($params, $path, $method);
+        foreach ($parameters as $k => $parameter) {
+            $in = $parameter['in'] ?? '';
+            if ($in == 'body') {
+                $schema = $parameter['schema'] ?? [];
+                $requestBody = [
+                    'content' => [
+                        'application/json' => [
+                            'schema' => $schema,
+                        ],
+                    ],
+                ];
+            }
+        }
         $plugin->addPath($path, $method, [
             'tags' => [$tag],
             'summary' => $mapping->summary ?? '',
             'description' => $mapping->description ?? '',
             'operationId' => implode('', array_map('ucfirst', explode('/', $path))) . ($mapping->methods[0] ?? ''),
             'parameters' => $this->makeParameters($params, $path, $method),
+            'requestBody' => $requestBody,
             'produces' => [
                 $consumes,
             ],
@@ -298,7 +314,7 @@ class ChatPluginsJson
                 }
             }
         }
-
+        $resp[$item->code]['schema'] = $item->schema;
         return $resp;
     }
 
