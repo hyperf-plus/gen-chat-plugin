@@ -316,6 +316,7 @@ class ChatPluginsJson
                 }
             }
         }
+        unset($resp[$item->code]['schema']);
         $resp[$item->code]['content']['application/json']['schema'] = $item->schema;
         return $resp;
     }
