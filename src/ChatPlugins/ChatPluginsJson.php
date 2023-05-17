@@ -184,9 +184,9 @@ class ChatPluginsJson
             'operationId' => implode('', array_map('ucfirst', explode('/', $path))) . ($mapping->methods[0] ?? ''),
             'parameters' => $parameters,
             'requestBody' => $requestBody,
-            'produces' => [
-                $consumes,
-            ],
+            // 'produces' => [
+            //     $consumes,
+            // ],
             'responses' => $this->makeResponses($responses, $path, $method),
         ]);
         if ($mapping && property_exists($mapping, 'security') && $mapping->security && isset($this->plugins['securityDefinitions'])) {
