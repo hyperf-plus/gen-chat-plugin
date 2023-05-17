@@ -529,10 +529,10 @@ class ChatPluginsJson
                     in_array('required', explode('|', $rule)) && $schema['required'][] = $fieldName;
                 }
                 if ($type == 'array') {
-                    $property['$ref'] = '#/definitions/ModelArray';
+                    $property = $this->plugins['definitions']['ModelArray'];
                 }
                 if ($type == 'object') {
-                    $property['$ref'] = '#/definitions/ModelObject';
+                    $property = $this->plugins['definitions']['ModelObject'];
                 }
             }
             if ($type !== null) {
