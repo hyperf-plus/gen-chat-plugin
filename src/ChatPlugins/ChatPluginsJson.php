@@ -183,7 +183,7 @@ class ChatPluginsJson
             'description' => $mapping->description ?? '',
             'operationId' => implode('', array_map('ucfirst', explode('/', $path))) . ($mapping->methods[0] ?? ''),
             'parameters' => $parameters,
-            'requestBody' => $requestBody,
+            'requestBody' => (object)$requestBody,
             // 'produces' => [
             //     $consumes,
             // ],
@@ -314,10 +314,18 @@ class ChatPluginsJson
                         $resp[$item->code]['schema']['$ref'] = '#/definitions/' . $modelName;
                     }
                 }
+                $ref = $resp[$item->code]['schema']['$ref'] ?? '';
+                if ($ref) {
+                    $resp[$item->code]['schema'] = $this->plugins['definitions'][$ref] ?? [];
+                }
+                $ref = $resp[$item->code]['schema']['items']['$ref'] ?? '';
+                if ($ref) {
+                    $resp[$item->code]['schema']['items'] = $this->plugins['definitions'][$ref] ?? [];
+                }
+                $resp[$item->code]['content']['application/json']['schema'] = (object)$resp[$item->code]['schema'];
+                unset($resp[$item->code]['schema']);
             }
         }
-        unset($resp[$item->code]['schema']);
-        $resp[$item->code]['content']['application/json']['schema'] = $item->schema;
         return $resp;
     }
 
