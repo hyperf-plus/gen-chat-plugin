@@ -31,7 +31,7 @@ class BootAppConfListener implements ListenerInterface
 
 
         if (!$config->get('plugins.enable')) {
-            $logger->debug('swagger not enable');
+            $logger->debug('plugins not enable');
             return;
         }
 
