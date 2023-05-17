@@ -20,7 +20,7 @@ final class ChatStream
         if (is_array($data)) {
             $data = json_encode($data, 256);
         }
-        $eventStream->write('data: ' . json_encode($data, 256) . PHP_EOL . PHP_EOL);
+        $eventStream->write('data: ' .$data. PHP_EOL . PHP_EOL);
     }
 
     public static function end(string $data = '[DONE]')
