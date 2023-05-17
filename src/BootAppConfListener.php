@@ -31,7 +31,7 @@ class BootAppConfListener implements ListenerInterface
 
 
         if (!$config->get('plugins.enable')) {
-            $logger->debug('swagger not enable');
+            $logger->debug('plugins not enable');
             return;
         }
 
@@ -44,9 +44,9 @@ class BootAppConfListener implements ListenerInterface
         $router = $container->get(DispatcherFactory::class)->getRouter('http');
         $data = $router->getData();
         $servers = $config->get('server.servers');
-        if (count($servers) > 1 && !Str::contains($output, '{server}')) {
-            $logger->warning('You have multiple serve, but your swagger.output_file not contains {server} var');
-        }
+        // if (count($servers) > 1 && !Str::contains($output, '{server}')) {
+        //     $logger->warning('You have multiple serve, but your swagger.output_file not contains {server} var');
+        // }
         foreach ($servers as $server) {
             $swagger = new ChatPluginsJson($server['name']);
             #跳过非http的服务
@@ -80,7 +80,9 @@ class BootAppConfListener implements ListenerInterface
 
             /** @var ChatPluginBean $plugin */
             foreach ($plugins as $plugin_id => $plugin) {
-                $output_dir = trim($config->get('plugins.php.output_dir') ?: 'runtime/plugin', '/');
+                $output_dir = $config->get('plugins.output_dir') ?: 'runtime/plugin';
+                $output_dir = str_replace(BASE_PATH, '', $output_dir);
+                $output_dir = trim($output_dir, '/');
                 $filename = sprintf('%s/%s/%s/openapi.json', BASE_PATH, $output_dir, $plugin_id);
                 $dir = dirname($filename);
                 if (!is_dir($dir)) {

@@ -33,7 +33,9 @@ class ChatPlugin
     #[GetMapping(path: '/{plugin_id}/.well-known/ai-plugin.json')]
     public function plugin(string $plugin_id)
     {
-        $output_dir = trim($this->config->get('plugins.php.output_dir') ?: 'runtime/plugin', '/');
+        $output_dir = $this->config->get('plugins.output_dir') ?: 'runtime/plugin';
+        $output_dir = str_replace(BASE_PATH, '', $output_dir);
+        $output_dir = trim($output_dir, '/');
         $filename = sprintf('%s/%s/%s/ai-plugin.json', BASE_PATH, $output_dir, $plugin_id);
         $data = file_get_contents($filename);
         return $this->response->json(json_decode($data, true));
@@ -42,10 +44,12 @@ class ChatPlugin
     #[GetMapping(path: '/{plugin_id}/openapi.json')]
     public function openai(string $plugin_id)
     {
-        $output_dir = trim($this->config->get('plugins.php.output_dir') ?: 'runtime/plugin', '/');
+        $output_dir = $this->config->get('plugins.output_dir') ?: 'runtime/plugin';
+        $output_dir = str_replace(BASE_PATH, '', $output_dir);
+        $output_dir = trim($output_dir, '/');
         $filename = sprintf('%s/%s/%s/openapi.json', BASE_PATH, $output_dir, $plugin_id);
         $data = file_get_contents($filename);
         return $this->response->withAddedHeader('content-type', 'text/yaml; charset=utf-8')
-            ->withBody(new SwooleStream((string) $data));
+            ->withBody(new SwooleStream((string)$data));
     }
 }
