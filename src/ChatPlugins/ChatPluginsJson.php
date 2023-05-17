@@ -322,7 +322,7 @@ class ChatPluginsJson
                 if ($ref) {
                     $resp[$item->code]['schema']['items'] = $this->plugins['definitions'][$ref] ?? [];
                 }
-                $resp[$item->code]['content']['application/json']['schema'] = (object)$resp[$item->code]['schema'];
+                $resp[$item->code]['content']['application/json']['schema'] = (object)$item->schema;
                 unset($resp[$item->code]['schema']);
             }
         }
