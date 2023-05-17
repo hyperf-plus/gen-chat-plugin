@@ -80,7 +80,7 @@ class BootAppConfListener implements ListenerInterface
 
             /** @var ChatPluginBean $plugin */
             foreach ($plugins as $plugin_id => $plugin) {
-                $output_dir = trim($config->get('plugins.php.output_dir') ?: 'runtime/plugin', '/');
+                $output_dir = trim($config->get('plugins.output_dir') ?: 'runtime/plugin', '/');
                 $filename = sprintf('%s/%s/%s/openapi.json', BASE_PATH, $output_dir, $plugin_id);
                 $dir = dirname($filename);
                 if (!is_dir($dir)) {
