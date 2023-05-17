@@ -182,7 +182,7 @@ class ChatPluginsJson
             'summary' => $mapping->summary ?? '',
             'description' => $mapping->description ?? '',
             'operationId' => implode('', array_map('ucfirst', explode('/', $path))) . ($mapping->methods[0] ?? ''),
-            'parameters' => $this->makeParameters($params, $path, $method),
+            'parameters' => $parameters,
             'requestBody' => $requestBody,
             'produces' => [
                 $consumes,
