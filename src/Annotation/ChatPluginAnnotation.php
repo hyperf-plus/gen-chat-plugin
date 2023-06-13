@@ -212,7 +212,7 @@ class ChatPluginAnnotation extends AbstractAnnotation
         $config = ApplicationContext::getContainer()->get(ConfigInterface::class);
         $items = $config->get('plugins.plugin') ?: [];
         foreach ($items as $k => $v) {
-            if (property_exists($this, $k)) {
+            if (property_exists($this, $k) && empty($this->{$k})) {
                 $this->{$k} = $v;
             }
         }
